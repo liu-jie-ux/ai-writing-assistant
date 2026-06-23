@@ -101,7 +101,7 @@ curl http://localhost:8080/api/history
 Open **http://localhost:8080** to see:
 
 - **Input card** — white panel with textarea and live character counter
-- **Three robot cards** — Formal 🎩 (blue), Natural 🌿 (amber), Business 💼 (green)
+- **Three robot cards** — Formal 🎩 (blue), Natural 💁‍♂️ (amber), Business 💼 (green)
 - **Color accent bars** at the top of each card
 - **Typewriter animation** — results appear character by character
 - **Bouncing dot animation** while waiting for the AI response
