@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import okhttp3.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -13,6 +15,8 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 public class DeepSeekService {
+
+    private static final Logger log = LoggerFactory.getLogger(DeepSeekService.class);
 
     @Value("${claude.api.key}")
     private String apiKey;
@@ -31,11 +35,13 @@ public class DeepSeekService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public JsonNode improveText(String inputText) throws IOException {
+        log.debug("Calling DeepSeek API, model={}, inputLength={}", model, inputText.length());
+        long start = System.currentTimeMillis();
+
         ObjectNode requestBody = objectMapper.createObjectNode();
         requestBody.put("model", model);
         requestBody.put("max_tokens", 1024);
 
-        // JSON形式での返答を強制するオプション
         ObjectNode responseFormat = objectMapper.createObjectNode();
         responseFormat.put("type", "json_object");
         requestBody.set("response_format", responseFormat);
@@ -77,19 +83,21 @@ public class DeepSeekService {
 
         try (Response response = httpClient.newCall(request).execute()) {
             if (!response.isSuccessful()) {
-                throw new IOException("DeepSeek API error: " + response.code() + " " + response.body().string());
+                String body = response.body() != null ? response.body().string() : "(empty)";
+                log.error("DeepSeek API returned {}: {}", response.code(), body);
+                throw new IOException("DeepSeek API error: " + response.code() + " " + body);
             }
             JsonNode responseJson = objectMapper.readTree(response.body().string());
             String content = responseJson.get("choices").get(0).get("message").get("content").asText();
 
-            // AIが返したJSON文字列をパースして返す
             JsonNode result = objectMapper.readTree(content);
 
-            // 必須キーの存在チェック
             if (!result.has("formal") || !result.has("natural") || !result.has("business")) {
+                log.error("AI response missing required keys. Raw: {}", content);
                 throw new IOException("AI response missing required keys. Got: " + content);
             }
 
+            log.debug("DeepSeek API responded in {}ms", System.currentTimeMillis() - start);
             return result;
         }
     }
